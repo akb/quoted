@@ -1,0 +1,22 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/motemen/go-loghttp",
+			"repository": "https://github.com/motemen/go-loghttp",
+			"vcs": "git",
+			"revision": "154f4234ae1b5f25b2bcd04c52f5f5bf63d67771",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/motemen/go-nuts/roundtime",
+			"repository": "https://github.com/motemen/go-nuts",
+			"vcs": "git",
+			"revision": "dc08250d3e2af3e2135769c23be4b6a6943c1657",
+			"branch": "master",
+			"path": "/roundtime",
+			"notests": true
+		}
+	]
+}
