@@ -10,31 +10,152 @@ import (
 const (
 	BuyAction  = "buy"
 	SellAction = "sell"
+
+	AskSide = "sell"
+	BidSide = "buy"
 )
 
 // OrderBook contains a snapshot of limit orders on GDAX
 type OrderBook struct {
-	Sequence int
-	Bids     []OrderBookEntry
-	Asks     []OrderBookEntry
+	Sequence int64 `json:"sequence"`
+	// TODO: use data structure that doesn't require full scan
+	Bids []*OrderBookEntry `json:"bids"`
+	Asks []*OrderBookEntry `json:"asks"`
 }
 
 // OrderBookEntry contains values found in 3-tuples in the API response. Go
 // doesn't handle polymorphism or non-homogenous slices so instead we use this
 // struct and some complex unmarshaling code
 type OrderBookEntry struct {
-	Price     float64
-	Size      float64
-	NumOrders float64
-	OrderID   string
+	Price     float64 `json:"price"`
+	Size      float64 `json:"size"`
+	NumOrders float64 `json:"num_orders"`
+	OrderID   string  `json:"order_id"`
+}
+
+// Insert will add a new order into the book, maintaining the price-sorted
+// order of the entries
+// TODO: UNIT TEST
+func (ob *OrderBook) Insert(side string, price, size float64, orderID string) error {
+	var entries []*OrderBookEntry
+	switch side {
+	case BidSide:
+		entries = ob.Bids
+	case AskSide:
+		entries = ob.Asks
+	default:
+		return fmt.Errorf("Received invalid order book side, %s\n", side)
+	}
+
+	var i int
+	var e *OrderBookEntry
+	for i, e = range entries {
+		if side == BuyAction && e.Price < price {
+			break
+		} else if side == SellAction && e.Price > price {
+			break
+		}
+	}
+
+	entry := OrderBookEntry{price, size, 1, orderID}
+	entries = append(entries[:i], append([]*OrderBookEntry{&entry}, entries[i:]...)...)
+
+	switch side {
+	case BidSide:
+		ob.Bids = entries
+	case AskSide:
+		ob.Asks = entries
+	}
+
+	return nil
+}
+
+// Delete will remove the order with the specified ID from the order book,
+// shrinking the size by one
+// TODO: UNIT TEST
+func (ob *OrderBook) Delete(side, orderID string) error {
+	var entries []*OrderBookEntry
+	switch side {
+	case BidSide:
+		entries = ob.Bids
+	case AskSide:
+		entries = ob.Asks
+	default:
+		return fmt.Errorf("Received invalid order book side, %s\n", side)
+	}
+
+	for i, e := range entries {
+		if e.OrderID == orderID {
+			entries = append(entries[:i], entries[i+1:]...)
+			break
+		}
+	}
+
+	switch side {
+	case BidSide:
+		ob.Bids = entries
+	case AskSide:
+		ob.Asks = entries
+	}
+
+	return nil
+}
+
+// Match will subtract the matched size from an existing order. If the new size
+// reaches 0, the order will not be deleted because there will be a subsequent
+// "Delete" call that will do so.
+// TODO: UNIT TEST
+func (ob *OrderBook) Match(orderID, side string, size float64) error {
+	var entries []*OrderBookEntry
+	switch side {
+	case BidSide:
+		entries = ob.Bids
+	case AskSide:
+		entries = ob.Asks
+	default:
+		return fmt.Errorf("Received invalid order book side, %s\n", side)
+	}
+
+	for _, e := range entries {
+		if e.OrderID == orderID {
+			e.Size = e.Size - size
+			break
+		}
+	}
+
+	return nil
+}
+
+// Change
+// TODO: UNIT TEST
+func (ob *OrderBook) Change(orderID, side string, size float64) error {
+	var entries []*OrderBookEntry
+	switch side {
+	case BidSide:
+		entries = ob.Bids
+	case AskSide:
+		entries = ob.Asks
+	default:
+		return fmt.Errorf("Received invalid order book side, %s\n", side)
+	}
+
+	for _, e := range entries {
+		if e.OrderID == orderID {
+			e.Size = size
+			break
+		}
+	}
+
+	return nil
 }
 
 // Quote tallies order book entries until the requested amount is met, then
 // subtracts any overage then returns it and the price
+// TODO: UNIT TEST
 func (ob *OrderBook) Quote(
 	action, currency string, amount float64, inverse bool,
 ) (price, total float64, err error) {
-	var side []OrderBookEntry
+	var side []*OrderBookEntry
 	if action == BuyAction {
 		side = ob.Asks
 	} else if action == SellAction {
@@ -97,7 +218,7 @@ func round(f float64, places int) float64 {
 // the API
 func (ob *OrderBook) UnmarshalJSON(buf []byte) error {
 	sob := struct {
-		Sequence int             `json:"sequence"`
+		Sequence int64           `json:"sequence"`
 		Bids     [][]interface{} `json:"bids"`
 		Asks     [][]interface{} `json:"asks"`
 	}{}
@@ -128,27 +249,28 @@ func (ob *OrderBook) UnmarshalJSON(buf []byte) error {
 }
 
 func newOrderBookEntry(serverEntry []interface{},
-) (entry OrderBookEntry, err error) {
+) (*OrderBookEntry, error) {
+	entry := OrderBookEntry{}
 	price, ok := serverEntry[0].(string)
 	if !ok {
-		return entry, fmt.Errorf("API returned non-string for order price")
+		return nil, fmt.Errorf("API returned non-string for order price")
 	}
 
 	floatPrice, err := strconv.ParseFloat(price, 64)
 	if err != nil {
-		return entry, fmt.Errorf("Unable to parse price as floating point number: %s", price)
+		return nil, fmt.Errorf("Unable to parse price as floating point number: %s", price)
 	}
 
 	entry.Price = floatPrice
 
 	size, ok := serverEntry[1].(string)
 	if !ok {
-		return entry, fmt.Errorf("API returned non-string for order size")
+		return nil, fmt.Errorf("API returned non-string for order size")
 	}
 
 	floatSize, err := strconv.ParseFloat(size, 64)
 	if err != nil {
-		return entry, fmt.Errorf("Unable to parse size as floating point number: %s", size)
+		return nil, fmt.Errorf("Unable to parse size as floating point number: %s", size)
 	}
 
 	entry.Size = floatSize
@@ -159,8 +281,8 @@ func newOrderBookEntry(serverEntry []interface{},
 	case string:
 		entry.OrderID = v
 	default:
-		return entry, fmt.Errorf("Unable to parse order book entry")
+		return nil, fmt.Errorf("Unable to parse order book entry")
 	}
 
-	return
+	return &entry, nil
 }

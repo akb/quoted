@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/satori/go.uuid"
 
 	"github.com/akb/gdax-quote/gdax"
 )
@@ -68,11 +71,8 @@ func handleQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ob, err := api.GetOrderBook(client, r.Context(), productID, 2)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, traceIDKey, uuid.NewV4().String())
 
 	action := q.Action
 	inverse := false
@@ -85,7 +85,7 @@ func handleQuote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	price, quantity, err := ob.Quote(
+	price, quantity, err := orderbooks[productID].Quote(
 		action, q.QuoteCurrency, floatAmount, inverse)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

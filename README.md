@@ -9,8 +9,8 @@ If you're on a Mac, you can probably run the prebuilt binary, `bin/quoted`.
 
 ## Build Instructions
 
-You will need [https://golang.org](Go) installed and your GOPATH environment
-variable set. The directory containing this file needs to be placed in
+You will need [Go](https://golang.org) installed and your GOPATH environment
+variable set. The directory containing this file needs to resolve to
 `$GOPATH/src/github.com/akb/gdax-quote`.
 
 To rebuild `bin/quoted` run:
@@ -36,18 +36,20 @@ variable. It defaults to the public GDAX API.
 
 ## Directory Layout
 
-- README.md         This file
-- Makefile          Build scripts
-- bin/quoted        Binary executable
-- test.rb           Ruby script containing integration tests
-- quoted/           API server source code
-- quoted/main.go    Main entry point for API server
-- quoted/logger.go  Tools for HTTP logging
-- quoted/quote.go   "/quote" API endpoint
-- gdax/             GDAX API client
-- gdax/api.go       HTTP client
-- gdax/orderbook.go Orderbook model
-- vendor/           3rd-party libraries, managed with gvt
+```
+README.md           This file
+Makefile            Build scripts
+bin/quoted          Binary executable
+test.rb             Ruby script containing integration tests
+quoted/             API server source code
+quoted/main.go      Main entry point for API server
+quoted/logger.go    Tools for HTTP logging
+quoted/quote.go     "/quote" API endpoint
+gdax/               GDAX API client
+gdax/api.go         HTTP client
+gdax/orderbook.go   Orderbook model
+vendor/             3rd-party libraries, managed with gvt
+```
 
 ## Known Issues
 
