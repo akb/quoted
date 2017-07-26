@@ -122,59 +122,63 @@ loop:
 func (lob *LiveOrderBook) do(a liveOrderBookAction) error {
 	switch lob.state {
 	case newState:
-		switch a {
-		case resetAction:
-			if err := lob.doReset(); err != nil {
-				return err
-			}
-
-			lob.Lock()
-			lob.state = loadingState
-			lob.Unlock()
-
-			lob.actionChan <- synchronizeAction
+		if a != resetAction {
+			break
 		}
+
+		if err := lob.doReset(); err != nil {
+			return err
+		}
+
+		lob.Lock()
+		lob.state = loadingState
+		lob.Unlock()
+
+		lob.actionChan <- synchronizeAction
 
 	case loadingState:
-		switch a {
-		case synchronizeAction:
-			lob.Lock()
-			lob.state = synchronizingState
-			lob.Unlock()
-
-			if err := lob.doSynchronize(); err != nil {
-				return err
-			}
-
-			lob.actionChan <- runAction
+		if a != synchronizeAction {
+			break
 		}
+
+		lob.Lock()
+		lob.state = synchronizingState
+		lob.Unlock()
+
+		if err := lob.doSynchronize(); err != nil {
+			return err
+		}
+
+		lob.actionChan <- runAction
 
 	case synchronizingState:
-		switch a {
-		case runAction:
-			lob.Lock()
-			lob.state = runningState
-			lob.Unlock()
+		if a != runAction {
+			break
 		}
+
+		lob.Lock()
+		lob.state = runningState
+		lob.Unlock()
 
 	case runningState:
-		switch a {
-		case resetAction:
-			lob.Lock()
-			lob.state = newState
-			lob.OrderBook = nil
-			lob.Unlock()
-
-			if err := lob.doReset(); err != nil {
-				return err
-			}
-
-			lob.Lock()
-			lob.state = loadingState
-			lob.Unlock()
-
-			lob.actionChan <- synchronizeAction
+		if a != resetAction {
+			break
 		}
+
+		lob.Lock()
+		lob.state = newState
+		lob.OrderBook = nil
+		lob.Unlock()
+
+		if err := lob.doReset(); err != nil {
+			return err
+		}
+
+		lob.Lock()
+		lob.state = loadingState
+		lob.Unlock()
+
+		lob.actionChan <- synchronizeAction
 	}
 
 	return nil
