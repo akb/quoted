@@ -9,7 +9,7 @@ clean:
 	mkdir -p bin
 
 $(quoted):
-	go build -o $(quoted) ./quoted/main.go ./quoted/logger.go ./quoted/quote.go
+	go build -o $(quoted) ./cmd/...
 
 run:
 	bin/quoted

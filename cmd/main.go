@@ -10,7 +10,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	"github.com/akb/gdax-quote/gdax"
+	"github.com/akb/quoted/gdax"
 )
 
 var (

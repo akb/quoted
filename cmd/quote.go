@@ -9,7 +9,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	"github.com/akb/gdax-quote/gdax"
+	"github.com/akb/quoted/gdax"
 )
 
 // QuoteRequest contains parameters needed for producing a quote. A JSON object

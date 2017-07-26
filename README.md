@@ -7,7 +7,7 @@ HTTP service for providing digital currency price quotes.
 
 You will need [Go](https://golang.org) installed and your GOPATH environment
 variable set. The directory containing this file needs to resolve to
-`$GOPATH/src/github.com/akb/gdax-quote`.
+`$GOPATH/src/github.com/akb/quoted`.
 
 To build and run `bin/quoted`:
 
@@ -37,10 +37,10 @@ README.md                 This file
 Makefile                  Build scripts
 bin/quoted                Binary executable
 test.rb                   Ruby script containing integration tests
-quoted/                   API server source code
-quoted/main.go            Main entry point for API server
-quoted/logger.go          Tools for HTTP logging
-quoted/quote.go           "/quote" API endpoint
+cmd/                      API server source code
+cmd/main.go               Main entry point for API server
+cmd/logger.go             Tools for HTTP logging
+cmd/quote.go              "/quote" API endpoint
 gdax/                     GDAX API client
 gdax/api.go               Client for the GDAX REST API
 gdax/orderbook.go         Orderbook model
