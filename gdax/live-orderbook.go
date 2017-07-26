@@ -46,12 +46,6 @@ type LiveOrderBook struct {
 	ErrorChan  chan error
 }
 
-func (l *LiveOrderBook) DroppedMessageCount() int64 {
-	l.RLock()
-	defer l.RUnlock()
-	return l.droppedMessages
-}
-
 func (a API) NewLiveOrderBook(
 	c *http.Client, ctx context.Context, feed *Feed,
 	productID string, done <-chan struct{},
@@ -87,6 +81,7 @@ func (a API) NewLiveOrderBook(
 	return &lob, nil
 }
 
+// Reset clears the order book, fetches a new state and re-synchronizes it
 func (lob *LiveOrderBook) Reset() {
 	lob.actionChan <- resetAction
 }
@@ -98,6 +93,14 @@ func (lob *LiveOrderBook) Quote(
 	lob.RLock()
 	defer lob.RUnlock()
 	return lob.OrderBook.Quote(action, currency, amount, inverse)
+}
+
+// DroppedMessageCount return the total number of messages dropped since the
+// last reset
+func (l *LiveOrderBook) DroppedMessageCount() int64 {
+	l.RLock()
+	defer l.RUnlock()
+	return l.droppedMessages
 }
 
 // the main event loop, runs in a goroutine
@@ -178,6 +181,12 @@ func (lob *LiveOrderBook) do(a liveOrderBookAction) error {
 }
 
 func (lob *LiveOrderBook) doReset() error {
+	lob.Lock()
+	lob.state = newState
+	lob.droppedMessages = 0
+	lob.queue = []Message{}
+	lob.Unlock()
+
 	orderbook, err := lob.api.GetOrderBook(lob.client, lob.context, lob.productID, 3)
 	if err != nil {
 		return err
