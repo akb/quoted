@@ -28,9 +28,11 @@ use rspec, the test is a standalone script.
 
 ## Environment Variables
 
-`GDAX_QUOTE_LISTEN_PORT`   The port on which `quoted` listens. Default: 3000
-`GDAX_API_URL`             URL for the GDAX REST API. Default: Public API
-`GDAX_WEBSOCKET_URL`       URL for the GDAX websocket API. Default: Public API
+| Variable name            | Default    | Description                         |
+| ------------------------ | ---------- | ----------------------------------- |
+| `GDAX_QUOTE_LISTEN_PORT` | 3000       | The port on which `quoted` listens. |
+| `GDAX_API_URL`           | Public API | URL for the GDAX REST API.          |
+| `GDAX_WEBSOCKET_URL`     | Public API | URL for the GDAX websocket API.     |
 
 ## Directory Layout
 
