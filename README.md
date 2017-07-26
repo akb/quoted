@@ -3,10 +3,6 @@ quoted
 
 HTTP service for providing digital currency price quotes.
 
-## Usage
-
-If you're on a Mac, you can probably run the prebuilt binary, `bin/quoted`.
-
 ## Build Instructions
 
 You will need [Go](https://golang.org) installed and your GOPATH environment
