@@ -188,11 +188,12 @@ func (lob *LiveOrderBook) doSynchronize() error {
 	for {
 		lob.queueLock.Lock()
 		if len(lob.queue) == 0 {
+			lob.queueLock.Unlock()
 			break
 		}
 		m := lob.queue[0]
 		lob.queue = lob.queue[1:]
-		lob.queueLock.Unlock()
+		lob.queueLock.Unlock() // this is repeated instead of using defer because we want to release the lock before calling `handle`
 		if err := lob.handle(m); err != nil {
 			return err
 		}
