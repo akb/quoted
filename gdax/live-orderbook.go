@@ -46,6 +46,12 @@ type LiveOrderBook struct {
 	ErrorChan  chan error
 }
 
+func (l *LiveOrderBook) DroppedMessageCount() int64 {
+	l.RLock()
+	defer l.RUnlock()
+	return l.droppedMessages
+}
+
 func (a API) NewLiveOrderBook(
 	c *http.Client, ctx context.Context, feed *Feed,
 	productID string, done <-chan struct{},
@@ -252,7 +258,9 @@ func (lob *LiveOrderBook) handle(m Message) error {
 	droppedMessages := m.Sequence - sequence - 1
 	if droppedMessages > 0 {
 		fmt.Fprintf(os.Stderr, "Dropped %v messages.\n", droppedMessages)
+		lob.Lock()
 		lob.droppedMessages += droppedMessages // TODO: reset if dropped messages?
+		lob.Unlock()
 	}
 
 	switch m.Type {
