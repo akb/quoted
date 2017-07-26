@@ -186,9 +186,9 @@ func (lob *LiveOrderBook) do(a liveOrderBookAction) error {
 
 func (lob *LiveOrderBook) doReset() error {
 	lob.Lock()
-	lob.state = newState
-	lob.droppedMessages = 0
 	lob.queue = []Message{}
+	lob.OrderBook = nil
+	lob.droppedMessages = 0
 	lob.Unlock()
 
 	orderbook, err := lob.api.GetOrderBook(lob.client, lob.context, lob.productID, 3)
