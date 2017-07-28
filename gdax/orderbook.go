@@ -18,7 +18,8 @@ const (
 // OrderBook contains a snapshot of limit orders on GDAX
 type OrderBook struct {
 	Sequence int64 `json:"sequence"`
-	// TODO: use data structure that doesn't require full scan
+	entries  map[string]*OrderBookEntry
+
 	Bids []*OrderBookEntry `json:"bids"`
 	Asks []*OrderBookEntry `json:"asks"`
 }
@@ -31,104 +32,88 @@ type OrderBookEntry struct {
 	Size      float64 `json:"size"`
 	NumOrders float64 `json:"num_orders"`
 	OrderID   string  `json:"order_id"`
+
+	Side string `json:"-"`
+}
+
+func (ob *OrderBook) Find(orderID string) *OrderBookEntry {
+	return ob.entries[orderID]
 }
 
 // Insert will add a new order into the book, maintaining the price-sorted
 // order of the entries
-// TODO: UNIT TEST
 func (ob *OrderBook) Insert(side string, price, size float64, orderID string) error {
-	var entries []*OrderBookEntry
-	switch side {
-	case BidSide:
-		entries = ob.Bids
-	case AskSide:
-		entries = ob.Asks
-	default:
-		return fmt.Errorf("Received invalid order book side, %s\n", side)
-	}
+	return ob.mutateSide(side,
+		func(entries []*OrderBookEntry) []*OrderBookEntry {
+			var i int
+			var e *OrderBookEntry
+			for i, e = range entries {
+				if side == BuyAction && e.Price < price {
+					break
+				} else if side == SellAction && e.Price > price {
+					break
+				}
+			}
 
-	var i int
-	var e *OrderBookEntry
-	for i, e = range entries {
-		if side == BuyAction && e.Price < price {
-			break
-		} else if side == SellAction && e.Price > price {
-			break
-		}
-	}
-
-	entry := OrderBookEntry{price, size, 1, orderID}
-	entries = append(entries[:i], append([]*OrderBookEntry{&entry}, entries[i:]...)...)
-
-	switch side {
-	case BidSide:
-		ob.Bids = entries
-	case AskSide:
-		ob.Asks = entries
-	}
-
-	return nil
+			entry := OrderBookEntry{price, size, 1, orderID, side}
+			entries = append(entries[:i], append([]*OrderBookEntry{&entry}, entries[i:]...)...)
+			ob.entries[orderID] = &entry
+			return entries
+		})
 }
 
 // Delete will remove the order with the specified ID from the order book,
 // shrinking the size by one
-// TODO: UNIT TEST
-func (ob *OrderBook) Delete(side, orderID string) error {
-	var entries []*OrderBookEntry
-	switch side {
-	case BidSide:
-		entries = ob.Bids
-	case AskSide:
-		entries = ob.Asks
-	default:
-		return fmt.Errorf("Received invalid order book side, %s\n", side)
-	}
+func (ob *OrderBook) Delete(orderID string) error {
+	e := ob.entries[orderID]
 
-	for i, e := range entries {
-		if e.OrderID == orderID {
-			entries = append(entries[:i], entries[i+1:]...)
-			break
-		}
-	}
-
-	switch side {
-	case BidSide:
-		ob.Bids = entries
-	case AskSide:
-		ob.Asks = entries
-	}
-
-	return nil
+	return ob.mutateSide(e.Side,
+		func(entries []*OrderBookEntry) []*OrderBookEntry {
+			for i, e := range entries {
+				if e.OrderID == orderID {
+					entries = append(entries[:i], entries[i+1:]...)
+					break
+				}
+			}
+			return entries
+		})
 }
 
 // Match will subtract the matched size from an existing order. If the new size
 // reaches 0, the order will not be deleted because there will be a subsequent
 // "Delete" call that will do so.
-// TODO: UNIT TEST
-func (ob *OrderBook) Match(orderID, side string, size float64) error {
-	var entries []*OrderBookEntry
-	switch side {
-	case BidSide:
-		entries = ob.Bids
-	case AskSide:
-		entries = ob.Asks
-	default:
-		return fmt.Errorf("Received invalid order book side, %s\n", side)
-	}
-
-	for _, e := range entries {
-		if e.OrderID == orderID {
-			e.Size = e.Size - size
-			break
-		}
-	}
-
-	return nil
+func (ob *OrderBook) Match(orderID string, size float64) error {
+	e := ob.entries[orderID]
+	return ob.mutateSide(e.Side,
+		func(entries []*OrderBookEntry) []*OrderBookEntry {
+			for _, e := range entries {
+				if e.OrderID == orderID {
+					e.Size = e.Size - size
+					break
+				}
+			}
+			return entries
+		})
 }
 
-// Change
-// TODO: UNIT TEST
-func (ob *OrderBook) Change(orderID, side string, size float64) error {
+// Change updates the size of an order
+func (ob *OrderBook) Change(orderID string, size float64) error {
+	e := ob.entries[orderID]
+	return ob.mutateSide(e.Side,
+		func(entries []*OrderBookEntry) []*OrderBookEntry {
+			for _, e := range entries {
+				if e.OrderID == orderID {
+					e.Size = size
+					break
+				}
+			}
+			return entries
+		})
+}
+
+func (ob *OrderBook) mutateSide(
+	side string, fn func(entries []*OrderBookEntry) []*OrderBookEntry,
+) error {
 	var entries []*OrderBookEntry
 	switch side {
 	case BidSide:
@@ -139,11 +124,13 @@ func (ob *OrderBook) Change(orderID, side string, size float64) error {
 		return fmt.Errorf("Received invalid order book side, %s\n", side)
 	}
 
-	for _, e := range entries {
-		if e.OrderID == orderID {
-			e.Size = size
-			break
-		}
+	entries = fn(entries)
+
+	switch side {
+	case BidSide:
+		ob.Bids = entries
+	case AskSide:
+		ob.Asks = entries
 	}
 
 	return nil
@@ -151,7 +138,6 @@ func (ob *OrderBook) Change(orderID, side string, size float64) error {
 
 // Quote tallies order book entries until the requested amount is met, then
 // subtracts any overage then returns it and the price
-// TODO: UNIT TEST
 func (ob *OrderBook) Quote(
 	action, currency string, amount float64, inverse bool,
 ) (price, total float64, err error) {
@@ -228,6 +214,7 @@ func (ob *OrderBook) UnmarshalJSON(buf []byte) error {
 	}
 
 	ob.Sequence = sob.Sequence
+	ob.entries = map[string]*OrderBookEntry{}
 
 	for _, b := range sob.Bids {
 		entry, err := newOrderBookEntry(b)

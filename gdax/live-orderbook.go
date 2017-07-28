@@ -317,7 +317,7 @@ func (lob *LiveOrderBook) handleMatch(m Message) error {
 
 	lob.Lock()
 	defer lob.Unlock()
-	if err := lob.Match(m.MakerOrderID, m.Side, size); err != nil {
+	if err := lob.Match(m.MakerOrderID, size); err != nil {
 		return err
 	}
 	return nil
@@ -326,7 +326,7 @@ func (lob *LiveOrderBook) handleMatch(m Message) error {
 func (lob *LiveOrderBook) handleDone(m Message) error {
 	lob.Lock()
 	defer lob.Unlock()
-	if err := lob.Delete(m.Side, m.OrderID); err != nil {
+	if err := lob.Delete(m.OrderID); err != nil {
 		return err
 	}
 	return nil
@@ -340,7 +340,7 @@ func (lob *LiveOrderBook) handleChange(m Message) error {
 
 	lob.Lock()
 	defer lob.Unlock()
-	if err := lob.Change(m.OrderID, m.Side, size); err != nil {
+	if err := lob.Change(m.OrderID, size); err != nil {
 		return err
 	}
 	return nil
